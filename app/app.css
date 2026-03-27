@@ -1,15 +1,170 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
+
+/* Class-based dark mode for Tailwind dark: variants */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
+
+  --color-surface: #f7f9fb;
+  --color-surface-low: #f2f4f6;
+  --color-surface-lowest: #ffffff;
+  --color-surface-high: #e6e8ea;
+  --color-surface-highest: #e0e3e5;
+  --color-surface-container: #eceef0;
+  --color-surface-dim: #d8dadc;
+  --color-surface-tint: #0053db;
+
+  --color-on-surface: #191c1e;
+  --color-on-surface-variant: #45464d;
+
+  --color-primary: #000000;
+  --color-primary-container: #00174b;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #497cff;
+
+  --color-secondary: #515f74;
+  --color-secondary-container: #d5e3fc;
+  --color-on-secondary-container: #57657a;
+
+  --color-tertiary-fixed: #6ffbbe;
+  --color-on-tertiary-container: #009668;
+
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+
+  --color-outline: #76777d;
+  --color-outline-variant: #c6c6cd;
+
+  --color-dark-surface: #0f1419;
+  --color-dark-surface-low: #161b22;
+  --color-dark-surface-lowest: #0d1117;
+  --color-dark-surface-high: #21262d;
+  --color-dark-on-surface: #e6edf3;
+  --color-dark-on-surface-variant: #8b949e;
+}
+
+/* === Runtime semantic theme variables === */
+:root {
+  --c-page-bg: #f7f9fb;
+  --c-sidebar-bg: #ffffff;
+  --c-card: #ffffff;
+  --c-card-alt: #f2f4f6;
+  --c-input: #f2f4f6;
+  --c-border: #f2f4f6;
+  --c-border-strong: #e0e3e5;
+
+  --c-text: #191c1e;
+  --c-text-2: #45464d;
+  --c-text-3: #76777d;
+  --c-text-4: #8b949e;
+
+  --c-tint: #0053db;
+  --c-success: #009668;
+  --c-error: #ba1a1a;
+  --c-error-bg: #ffdad6;
+  --c-error-text: #93000a;
+  --c-success-bg: #6ffbbe;
+  --c-success-text: #002113;
+  --c-info-bg: #d5e3fc;
+  --c-info-text: #57657a;
+
+  --c-header-bg: rgba(255, 255, 255, 0.85);
+  --c-header-border: #f2f4f6;
+
+  --c-hover-nav: #f2f4f6;
+  --c-hover-row: #f7f9fb;
+  --c-hover-btn: #eceef0;
+  --c-hover-error: rgba(186, 26, 26, 0.08);
+
+  --c-overlay: rgba(25, 28, 30, 0.5);
+}
+
+.dark {
+  --c-page-bg: #0d1117;
+  --c-sidebar-bg: #161b22;
+  --c-card: #161b22;
+  --c-card-alt: #21262d;
+  --c-input: #21262d;
+  --c-border: #30363d;
+  --c-border-strong: #444c56;
+
+  --c-text: #e6edf3;
+  --c-text-2: #b0bec5;
+  --c-text-3: #8b949e;
+  --c-text-4: #6e7681;
+
+  --c-tint: #58a6ff;
+  --c-success: #3fb950;
+  --c-error: #f85149;
+  --c-error-bg: rgba(248, 81, 73, 0.15);
+  --c-error-text: #ffa198;
+  --c-success-bg: rgba(63, 185, 80, 0.15);
+  --c-success-text: #56d364;
+  --c-info-bg: rgba(88, 166, 255, 0.12);
+  --c-info-text: #79c0ff;
+
+  --c-header-bg: rgba(13, 17, 23, 0.9);
+  --c-header-border: #30363d;
+
+  --c-hover-nav: #21262d;
+  --c-hover-row: #21262d;
+  --c-hover-btn: #30363d;
+  --c-hover-error: rgba(248, 81, 73, 0.12);
+
+  --c-overlay: rgba(0, 0, 0, 0.7);
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
-
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
-  }
+  background-color: var(--c-page-bg);
+  color: var(--c-text);
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
+
+.dark {
+  color-scheme: dark;
+}
+
+.font-display {
+  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Glassmorphism utility */
+.glass {
+  backdrop-filter: blur(20px);
+  background-color: rgba(255, 255, 255, 0.8);
+}
+.dark .glass {
+  background-color: rgba(22, 27, 34, 0.85);
+}
+
+/* No scrollbar utility */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Price ticker animation */
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker 30s linear infinite;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* Themed hover state utilities */
+.hover-nav:hover { background-color: var(--c-hover-nav); }
+.hover-btn:hover { background-color: var(--c-hover-btn); }
+.hover-row:hover { background-color: var(--c-hover-row); }
+.hover-error:hover { background-color: var(--c-hover-error); }
