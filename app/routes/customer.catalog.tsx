@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { Package, Search, X, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { Package, Search, X, TrendingDown, TrendingUp, Minus, ChevronDown } from "lucide-react";
 import { getProducts } from "~/lib/store";
 import { getAllStoreUsers } from "~/lib/user-session";
 import type { Product } from "~/lib/types";
@@ -14,38 +14,72 @@ export function meta() {
 }
 
 const CATEGORIES = [
-  "All", "Grains", "Staples", "Canned Goods", "Beverages", "Snacks",
-  "Condiments", "Household", "Fresh", "Personal Care", "Other",
+  "All",
+  "Grains",
+  "Staples",
+  "Canned Goods",
+  "Beverages",
+  "Snacks",
+  "Condiments",
+  "Household",
+  "Fresh",
+  "Personal Care",
+  "Other",
 ];
+
+type PriceSort = "none" | "lowest" | "highest";
 
 export default function CustomerCatalog() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const storeFilter = searchParams.get("store") ?? "";
+  const storeFilter = searchParams.get("store") ?? "All";
 
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [priceSort, setPriceSort] = useState<PriceSort>("none");
   const [storeNames, setStoreNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const allProds = getProducts();
-    setProducts(storeFilter ? allProds.filter((p) => p.storeOwnerId === storeFilter) : allProds);
-    const storeUsers = getAllStoreUsers();
+    setProducts(getProducts());
+    const stores = getAllStoreUsers();
     const nameMap: Record<string, string> = {};
-    storeUsers.forEach((s) => { nameMap[s.email] = s.storeName; });
+    stores.forEach((s) => {
+      nameMap[s.email] = s.storeName;
+    });
     setStoreNames(nameMap);
-  }, [storeFilter]);
+  }, []);
 
-  const filtered = products.filter((p) => {
-    const matchesSearch =
-      !search ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.category.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = activeCategory === "All" || p.category === activeCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const storeOptions = useMemo(() => {
+    const ids = Array.from(
+      new Set(products.map((p) => p.storeOwnerId).filter((id): id is string => !!id))
+    );
+    return ids.sort((a, b) => {
+      const nameA = storeNames[a] ?? a;
+      const nameB = storeNames[b] ?? b;
+      return nameA.localeCompare(nameB);
+    });
+  }, [products, storeNames]);
 
-  const currentStoreName = storeFilter ? (storeNames[storeFilter] ?? "Store") : null;
+  const filtered = useMemo(() => {
+    const searched = products.filter((p) => {
+      const matchesSearch =
+        !search ||
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.category.toLowerCase().includes(search.toLowerCase());
+      const matchesCategory = activeCategory === "All" || p.category === activeCategory;
+      const matchesStore = storeFilter === "All" || p.storeOwnerId === storeFilter;
+      return matchesSearch && matchesCategory && matchesStore;
+    });
+
+    if (priceSort === "none") return searched;
+    return [...searched].sort((a, b) =>
+      priceSort === "lowest"
+        ? a.currentPrice - b.currentPrice
+        : b.currentPrice - a.currentPrice
+    );
+  }, [products, search, activeCategory, storeFilter, priceSort]);
+
+  const currentStoreName = storeFilter !== "All" ? (storeNames[storeFilter] ?? "Store") : null;
 
   return (
     <div>
@@ -60,24 +94,14 @@ export default function CustomerCatalog() {
               : "Browse products from all stores"}
           </p>
         </div>
-        {storeFilter && (
-          <button
-            onClick={() => setSearchParams({})}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer hover-btn self-start"
-            style={{ color: "var(--c-text-2)", backgroundColor: "var(--c-card)" }}
-          >
-            <X size={14} />
-            All Stores
-          </button>
-        )}
       </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
+      <div className="flex flex-col gap-3 mb-6">
         <div
-          className="flex items-center gap-2.5 px-4 h-10 rounded-xl w-full sm:w-64 flex-shrink-0"
-          style={{ backgroundColor: "var(--c-card)" }}
+          className="flex items-center gap-3 px-4 h-11 rounded-xl w-full"
+          style={{ backgroundColor: "var(--c-input)", border: "1px solid var(--c-border)" }}
         >
-          <Search size={15} style={{ color: "var(--c-text-3)" }} />
+          <Search size={16} style={{ color: "var(--c-text-3)" }} />
           <input
             type="text"
             value={search}
@@ -92,21 +116,61 @@ export default function CustomerCatalog() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none w-full sm:w-auto pb-1 sm:pb-0">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer"
-              style={
-                activeCategory === cat
-                  ? { backgroundColor: "var(--c-text)", color: "var(--c-card)" }
-                  : { backgroundColor: "var(--c-card)", color: "var(--c-text-2)" }
-              }
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+          <div className="relative">
+            <select
+              value={activeCategory}
+              onChange={(e) => setActiveCategory(e.target.value)}
+              className="w-full h-10 px-3 pr-9 rounded-xl text-sm outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-[var(--primary)]"
+              style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "1px solid var(--c-border)" }}
             >
-              {cat}
-            </button>
-          ))}
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat === "All" ? "All Categories" : cat}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--c-text-3)" }} />
+          </div>
+
+          <div className="relative">
+            <select
+              value={priceSort}
+              onChange={(e) => setPriceSort(e.target.value as PriceSort)}
+              className="w-full h-10 px-3 pr-9 rounded-xl text-sm outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-[var(--primary)]"
+              style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "1px solid var(--c-border)" }}
+            >
+              <option value="none">Price: Default</option>
+              <option value="lowest">Price: Lowest first</option>
+              <option value="highest">Price: Highest first</option>
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--c-text-3)" }} />
+          </div>
+
+          <div className="relative">
+            <select
+              value={storeFilter}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next === "All") {
+                  setSearchParams({});
+                  return;
+                }
+                setSearchParams({ store: next });
+              }}
+              className="w-full h-10 px-3 pr-9 rounded-xl text-sm outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-[var(--primary)]"
+              style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "1px solid var(--c-border)" }}
+            >
+              <option value="All">All Stores</option>
+              {storeOptions.map((storeId) => (
+                <option key={storeId} value={storeId}>
+                  {storeNames[storeId] ?? storeId}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--c-text-3)" }} />
+          </div>
         </div>
       </div>
 
@@ -114,7 +178,9 @@ export default function CustomerCatalog() {
         <div className="py-20 text-center">
           <Package size={36} className="mx-auto mb-3" style={{ color: "var(--c-border-strong)" }} />
           <p className="text-sm" style={{ color: "var(--c-text-3)" }}>
-            {search || activeCategory !== "All" ? "No products match your filter." : "No products available."}
+            {search || activeCategory !== "All" || storeFilter !== "All"
+              ? "No products match your filter."
+              : "No products available."}
           </p>
         </div>
       ) : (
@@ -153,7 +219,7 @@ export default function CustomerCatalog() {
                   <StockBadge status={product.stockStatus} />
                   <div className="text-right">
                     <p className="font-display font-bold text-base" style={{ color: "var(--c-text)" }}>
-                      ₱{product.currentPrice.toFixed(2)}
+                      P{product.currentPrice.toFixed(2)}
                     </p>
                     {delta !== 0 ? (
                       <span
@@ -161,7 +227,7 @@ export default function CustomerCatalog() {
                         style={{ color: delta < 0 ? "var(--c-success)" : "var(--c-error)" }}
                       >
                         {delta < 0 ? <TrendingDown size={11} /> : <TrendingUp size={11} />}
-                        {delta < 0 ? "" : "+"}₱{Math.abs(delta).toFixed(2)}
+                        {delta < 0 ? "" : "+"}P{Math.abs(delta).toFixed(2)}
                       </span>
                     ) : (
                       <span className="flex items-center gap-0.5 text-xs justify-end" style={{ color: "var(--c-text-3)" }}>
@@ -180,7 +246,7 @@ export default function CustomerCatalog() {
                   </div>
                 )}
 
-                {!storeFilter && product.storeOwnerId && storeNames[product.storeOwnerId] && (
+                {storeFilter === "All" && product.storeOwnerId && storeNames[product.storeOwnerId] && (
                   <p className="text-xs" style={{ color: "var(--c-text-3)" }}>
                     From: {storeNames[product.storeOwnerId]}
                   </p>

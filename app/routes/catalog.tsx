@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   Plus,
@@ -8,9 +8,9 @@ import {
   TrendingUp,
   Minus,
   Trash2,
-  AlertTriangle,
   X,
   Check,
+  ChevronDown,
 } from "lucide-react";
 
 import {
@@ -22,7 +22,7 @@ import {
 
 import type { Product, StockStatus } from "~/lib/types";
 import { useUserSession } from "~/lib/use-user-session";
-import { getUserSession } from "~/lib/user-session";
+import { getUserSession, getAllStoreUsers } from "~/lib/user-session";
 import { StockBadge } from "~/components/ui/Badge";
 
 export function meta() {
@@ -45,6 +45,8 @@ const CATEGORIES = [
   "Personal Care",
   "Other",
 ];
+
+type PriceSort = "none" | "lowest" | "highest";
 
 interface ProductRowProps {
   product: Product;
@@ -384,23 +386,53 @@ export default function Catalog() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [activeStore, setActiveStore] = useState("All");
+  const [priceSort, setPriceSort] = useState<PriceSort>("none");
+  const [storeNames, setStoreNames] = useState<Record<string, string>>({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     const prods = getMyProducts();
     setProducts(prods);
+    const stores = getAllStoreUsers();
+    const nameMap: Record<string, string> = {};
+    stores.forEach((s) => {
+      nameMap[s.email] = s.storeName;
+    });
+    setStoreNames(nameMap);
   }, []);
 
-  const filtered = products.filter((p) => {
-    const matchesSearch =
-      !search ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.category.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory =
-      activeCategory === "All" || p.category === activeCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const storeOptions = useMemo(() => {
+    const ids = Array.from(
+      new Set(products.map((p) => p.storeOwnerId).filter((id): id is string => !!id))
+    );
+    return ids.sort((a, b) => {
+      const nameA = storeNames[a] ?? a;
+      const nameB = storeNames[b] ?? b;
+      return nameA.localeCompare(nameB);
+    });
+  }, [products, storeNames]);
+
+  const filtered = useMemo(() => {
+    const searched = products.filter((p) => {
+      const matchesSearch =
+        !search ||
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.category.toLowerCase().includes(search.toLowerCase());
+      const matchesCategory =
+        activeCategory === "All" || p.category === activeCategory;
+      const matchesStore = activeStore === "All" || p.storeOwnerId === activeStore;
+      return matchesSearch && matchesCategory && matchesStore;
+    });
+
+    if (priceSort === "none") return searched;
+    return [...searched].sort((a, b) =>
+      priceSort === "lowest"
+        ? a.currentPrice - b.currentPrice
+        : b.currentPrice - a.currentPrice
+    );
+  }, [products, search, activeCategory, activeStore, priceSort]);
 
   const totalItems = products.length;
   const lowStockCount = products.filter((p) => p.stockStatus === "low-stock").length;
@@ -474,12 +506,12 @@ export default function Catalog() {
         ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
+      <div className="flex flex-col gap-3 mb-6">
         <div
-          className="flex items-center gap-2.5 px-4 h-10 rounded-xl w-full sm:w-64 flex-shrink-0"
-          style={{ backgroundColor: "var(--c-card)" }}
+          className="flex items-center gap-3 px-4 h-11 rounded-xl w-full"
+          style={{ backgroundColor: "var(--c-input)", border: "1px solid var(--c-border)" }}
         >
-          <Search size={15} style={{ color: "var(--c-text-3)" }} />
+          <Search size={16} style={{ color: "var(--c-text-3)" }} />
           <input
             type="text"
             value={search}
@@ -498,21 +530,54 @@ export default function Catalog() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none w-full sm:w-auto pb-1 sm:pb-0">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer"
-              style={
-                activeCategory === cat
-                  ? { backgroundColor: "var(--c-text)", color: "var(--c-card)" }
-                  : { backgroundColor: "var(--c-card)", color: "var(--c-text-2)" }
-              }
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+          <div className="relative">
+            <select
+              value={activeCategory}
+              onChange={(e) => setActiveCategory(e.target.value)}
+              className="w-full h-10 px-3 pr-9 rounded-xl text-sm outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-[var(--primary)]"
+              style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "1px solid var(--c-border)" }}
             >
-              {cat}
-            </button>
-          ))}
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat === "All" ? "All Categories" : cat}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--c-text-3)" }} />
+          </div>
+
+          <div className="relative">
+            <select
+              value={priceSort}
+              onChange={(e) => setPriceSort(e.target.value as PriceSort)}
+              className="w-full h-10 px-3 pr-9 rounded-xl text-sm outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-[var(--primary)]"
+              style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "1px solid var(--c-border)" }}
+            >
+              <option value="none">Price: Default</option>
+              <option value="lowest">Price: Lowest first</option>
+              <option value="highest">Price: Highest first</option>
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--c-text-3)" }} />
+          </div>
+
+          <div className="relative">
+            <select
+              value={activeStore}
+              onChange={(e) => setActiveStore(e.target.value)}
+              className="w-full h-10 px-3 pr-9 rounded-xl text-sm outline-none cursor-pointer appearance-none focus:ring-2 focus:ring-[var(--primary)]"
+              style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "1px solid var(--c-border)" }}
+            >
+              <option value="All">All Stores</option>
+              {storeOptions.map((storeId) => (
+                <option key={storeId} value={storeId}>
+                  {storeNames[storeId] ?? storeId}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--c-text-3)" }} />
+          </div>
         </div>
       </div>
 
@@ -544,6 +609,7 @@ export default function Catalog() {
                   <Package size={32} className="mx-auto mb-3" style={{ color: "var(--c-border-strong)" }} />
                   <p className="text-sm" style={{ color: "var(--c-text-3)" }}>
                     {search || activeCategory !== "All"
+                      || activeStore !== "All"
                       ? "No products match your filter."
                       : session
                         ? "No products yet. Add your first one!"
@@ -603,6 +669,7 @@ export default function Catalog() {
             <Package size={32} className="mx-auto mb-3" style={{ color: "var(--c-border-strong)" }} />
             <p className="text-sm" style={{ color: "var(--c-text-3)" }}>
               {search || activeCategory !== "All"
+                || activeStore !== "All"
                 ? "No products match your filter."
                 : session
                   ? "No products yet. Add your first one!"
