@@ -30,6 +30,7 @@ import {
 import type { Product, StockStatus } from "~/lib/types";
 import { useUserSession } from "~/lib/use-user-session";
 import { getUserSession } from "~/lib/user-session";
+import { productSchema } from "~/lib/validation";
 
 export function meta() {
   return [
@@ -309,6 +310,7 @@ export default function CatalogItemEditor() {
   const [weeklyUnitsSold, setWeeklyUnitsSold] = useState("");
   const [product, setProduct] = useState<Product | null>(null);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
@@ -361,6 +363,7 @@ export default function CatalogItemEditor() {
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     if (!name.trim() || !currentPrice) return;
 
     const now = new Date().toISOString();
@@ -389,7 +392,13 @@ export default function CatalogItemEditor() {
       storeOwnerId: product?.storeOwnerId ?? getUserSession()?.email,
     };
 
-    upsertProduct(updated);
+    const checked = productSchema.safeParse(updated);
+    if (!checked.success) {
+      setError(checked.error.issues[0]?.message ?? "Please check the form values.");
+      return;
+    }
+
+    upsertProduct(checked.data);
     setSaved(true);
     setTimeout(() => {
       navigate("/store/catalog");
@@ -489,6 +498,12 @@ export default function CatalogItemEditor() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: form fields */}
           <div className="lg:col-span-2 space-y-5">
+            {error && (
+              <p className="text-xs font-medium px-3 py-2 rounded-lg" style={{ backgroundColor: "var(--c-error-bg)", color: "var(--c-error)" }}>
+                {error}
+              </p>
+            )}
+
             {/* Basic info card */}
             <div className="rounded-2xl p-6" style={{ backgroundColor: "var(--c-card)" }}>
               <h2 className="font-display font-bold text-base mb-5" style={{ color: "var(--c-text)" }}>

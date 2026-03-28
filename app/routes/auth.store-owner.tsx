@@ -4,6 +4,7 @@ import { Store, Eye, EyeOff } from "lucide-react";
 import { signupStoreOwner, loginStoreOwner, getUserSession } from "~/lib/user-session";
 import { seedNewStoreOwner } from "~/lib/store";
 import { SEED_PRODUCTS } from "~/lib/seed-data";
+import { storeOwnerSignupInputSchema } from "~/lib/validation";
 
 export function meta() {
   return [{ title: "Store Owner Sign In — SukiTrack" }];
@@ -38,13 +39,22 @@ export default function AuthStoreOwner() {
     else if (session?.role === "customer") navigate("/customer", { replace: true });
   }, [navigate]);
 
-  function handleSignup(e: React.FormEvent) {
+  async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (password !== confirmPassword) { setError("Passwords do not match."); return; }
-    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    const parsed = storeOwnerSignupInputSchema.safeParse({
+      name: ownerName,
+      email: signupEmail,
+      storeName,
+      password,
+    });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Invalid form values.");
+      return;
+    }
     setLoading(true);
-    const result = signupStoreOwner(ownerName.trim(), signupEmail.trim(), storeName.trim(), password);
+    const result = await signupStoreOwner(ownerName.trim(), signupEmail.trim(), storeName.trim(), password);
     setLoading(false);
     if (!result.ok) { setError(result.error ?? "Something went wrong."); return; }
     const session = getUserSession();
@@ -59,11 +69,11 @@ export default function AuthStoreOwner() {
     navigate("/store");
   }
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const result = loginStoreOwner(loginEmail.trim(), loginPassword);
+    const result = await loginStoreOwner(loginEmail.trim(), loginPassword);
     setLoading(false);
     if (!result.ok) { setError(result.error ?? "Something went wrong."); return; }
     navigate("/store");
@@ -167,7 +177,7 @@ export default function AuthStoreOwner() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min. 6 characters"
                 required
-                minLength={6}
+                minLength={8}
                 className={`${inputCls} pr-11`}
                 style={{ backgroundColor: "var(--muted)", color: "var(--foreground)" }}
               />

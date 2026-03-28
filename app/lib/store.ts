@@ -1,10 +1,9 @@
 import type { Product } from "./types";
 import { appendAudit, summarizeProductDiff } from "./audit-log";
-import { isAdminAuthenticated } from "./admin-session";
 import { isStoreOwner, getUserSession } from "./user-session";
 
 export class AdminMutationForbiddenError extends Error {
-  constructor(message = "Only administrators can change data.") {
+  constructor(message = "Only administrators or store owners can change data.") {
     super(message);
     this.name = "AdminMutationForbiddenError";
   }
@@ -12,7 +11,8 @@ export class AdminMutationForbiddenError extends Error {
 
 function requireAdminForMutations(): void {
   if (typeof window === "undefined") return;
-  if (!isAdminAuthenticated() && !isStoreOwner()) {
+  const inAdminArea = window.location.pathname.startsWith("/admin");
+  if (!inAdminArea && !isStoreOwner()) {
     throw new AdminMutationForbiddenError();
   }
 }

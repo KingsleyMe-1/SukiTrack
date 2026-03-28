@@ -13,7 +13,7 @@ export function meta() {
 }
 
 interface StoreWithStats {
-  info: Omit<StoreUserAccount, "password">;
+  info: Omit<StoreUserAccount, "passwordHash" | "passwordSalt" | "passwordIterations">;
   productCount: number;
   promoCount: number;
   lowStockCount: number;
