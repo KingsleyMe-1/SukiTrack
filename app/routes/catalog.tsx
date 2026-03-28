@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
   Plus,
   Package,
@@ -7,12 +7,10 @@ import {
   TrendingDown,
   TrendingUp,
   Minus,
-  Pencil,
   Trash2,
   AlertTriangle,
   X,
   Check,
-  Eye,
 } from "lucide-react";
 
 import {
@@ -56,6 +54,7 @@ interface ProductRowProps {
 }
 
 function ProductRow({ product, onDelete, isAdmin, basePath = "/store/catalog" }: ProductRowProps) {
+  const navigate = useNavigate();
   const h = [...product.priceHistory].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -65,6 +64,7 @@ function ProductRow({ product, onDelete, isAdmin, basePath = "/store/catalog" }:
     <tr
       className="group transition-colors hover-row cursor-pointer"
       style={{ borderBottom: "1px solid var(--c-border)" }}
+      onClick={() => navigate(`${basePath}/${product.id}`)}
     >
       <td className="py-4 px-6">
         <div className="flex items-center gap-3">
@@ -111,19 +111,11 @@ function ProductRow({ product, onDelete, isAdmin, basePath = "/store/catalog" }:
         )}
       </td>
       <td className="py-4 px-6 text-right">
-        {isAdmin ? (
+        {isAdmin && (
           <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-            <Link
-              to={`${basePath}/${product.id}`}
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-btn"
-              style={{ color: "var(--c-text-2)" }}
-              title="Edit"
-            >
-              <Pencil size={14} />
-            </Link>
             <button
               type="button"
-              onClick={() => onDelete(product.id)}
+              onClick={(e) => { e.stopPropagation(); onDelete(product.id); }}
               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-error"
               style={{ color: "var(--c-error)" }}
               title="Delete"
@@ -131,15 +123,6 @@ function ProductRow({ product, onDelete, isAdmin, basePath = "/store/catalog" }:
               <Trash2 size={14} />
             </button>
           </div>
-        ) : (
-          <Link
-            to={`${basePath}/${product.id}`}
-            className="inline-flex items-center gap-1 text-xs font-semibold"
-            style={{ color: "var(--c-tint)" }}
-          >
-            <Eye size={14} />
-            View
-          </Link>
         )}
       </td>
     </tr>
@@ -147,6 +130,7 @@ function ProductRow({ product, onDelete, isAdmin, basePath = "/store/catalog" }:
 }
 
 function ProductCard({ product, onDelete, isAdmin, basePath = "/store/catalog" }: ProductRowProps) {
+  const navigate = useNavigate();
   const h = [...product.priceHistory].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -154,8 +138,9 @@ function ProductCard({ product, onDelete, isAdmin, basePath = "/store/catalog" }
 
   return (
     <div
-      className="rounded-2xl p-4"
+      className="rounded-2xl p-4 cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99]"
       style={{ backgroundColor: "var(--c-card)", border: "1px solid var(--c-border)" }}
+      onClick={() => navigate(`${basePath}/${product.id}`)}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-3">
@@ -196,35 +181,16 @@ function ProductCard({ product, onDelete, isAdmin, basePath = "/store/catalog" }
           <p className="font-display font-semibold text-sm" style={{ color: "var(--c-text)" }}>
             P{product.currentPrice.toFixed(2)}
           </p>
-          {isAdmin ? (
-            <>
-              <Link
-                to={`${basePath}/${product.id}`}
-                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-btn"
-                style={{ color: "var(--c-text-2)" }}
-                title="Edit"
-              >
-                <Pencil size={14} />
-              </Link>
-              <button
-                type="button"
-                onClick={() => onDelete(product.id)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-error"
-                style={{ color: "var(--c-error)" }}
-                title="Delete"
-              >
-                <Trash2 size={14} />
-              </button>
-            </>
-          ) : (
-            <Link
-              to={`${basePath}/${product.id}`}
-              className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg"
-              style={{ color: "var(--c-tint)", backgroundColor: "var(--c-card-alt)" }}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete(product.id); }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-error"
+              style={{ color: "var(--c-error)" }}
+              title="Delete"
             >
-              <Eye size={14} />
-              View
-            </Link>
+              <Trash2 size={14} />
+            </button>
           )}
         </div>
       </div>
@@ -411,8 +377,7 @@ function AddProductModal({ onClose, onSave }: AddProductModalProps) {
   );
 }
 
-const TABLE_HEAD_ADMIN = ["Product", "Category", "Status", "Price", "Change", ""];
-const TABLE_HEAD_VIEW = ["Product", "Category", "Status", "Price", "Change", "View"];
+const TABLE_HEADS = ["Product", "Category", "Status", "Price", "Change", ""];
 
 export default function Catalog() {
   const session = useUserSession();
@@ -559,7 +524,7 @@ export default function Catalog() {
         <table className="w-full">
           <thead>
             <tr style={{ borderBottom: "1px solid var(--c-border)" }}>
-              {(session ? TABLE_HEAD_ADMIN : TABLE_HEAD_VIEW).map((h) => (
+              {TABLE_HEADS.map((h) => (
                 <th
                   key={h || "actions"}
                   className={`py-3 px-6 text-xs font-medium text-left ${
@@ -686,16 +651,6 @@ export default function Catalog() {
 
       {showAddModal && session && (
         <AddProductModal onClose={() => setShowAddModal(false)} onSave={handleSaveNew} />
-      )}
-
-      {lowStockCount > 0 && (
-        <div
-          className="fixed bottom-6 right-4 sm:right-6 flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-medium text-white shadow-lg"
-          style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
-        >
-          <AlertTriangle size={16} />
-          {lowStockCount} item{lowStockCount > 1 ? "s" : ""} low on stock
-        </div>
       )}
     </>
   );
