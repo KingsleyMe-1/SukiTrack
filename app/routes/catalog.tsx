@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router";
 import {
   Plus,
@@ -12,17 +12,20 @@ import {
   AlertTriangle,
   X,
   Check,
+  Eye,
 } from "lucide-react";
-import Layout from "~/components/Layout";
+
 import {
-  getProducts,
-  saveProducts,
+  getMyProducts,
   deleteProduct,
   generateId,
   upsertProduct,
 } from "~/lib/store";
-import { SEED_PRODUCTS } from "~/lib/seed-data";
+
 import type { Product, StockStatus } from "~/lib/types";
+import { useUserSession } from "~/lib/use-user-session";
+import { getUserSession } from "~/lib/user-session";
+import { StockBadge } from "~/components/ui/Badge";
 
 export function meta() {
   return [
@@ -45,41 +48,14 @@ const CATEGORIES = [
   "Other",
 ];
 
-function StockBadge({ status }: { status: StockStatus }) {
-  if (status === "in-stock")
-    return (
-      <span
-        className="text-xs px-2.5 py-1 rounded-full font-medium"
-        style={{ backgroundColor: "var(--c-success-bg)", color: "var(--c-success-text)" }}
-      >
-        In Stock
-      </span>
-    );
-  if (status === "low-stock")
-    return (
-      <span
-        className="text-xs px-2.5 py-1 rounded-full font-medium"
-        style={{ backgroundColor: "var(--c-error-bg)", color: "var(--c-error)" }}
-      >
-        Low Stock
-      </span>
-    );
-  return (
-    <span
-      className="text-xs px-2.5 py-1 rounded-full font-medium"
-      style={{ backgroundColor: "var(--c-card-alt)", color: "var(--c-text-3)" }}
-    >
-      Out of Stock
-    </span>
-  );
-}
-
 interface ProductRowProps {
   product: Product;
   onDelete: (id: string) => void;
+  isAdmin: boolean;
+  basePath?: string;
 }
 
-function ProductRow({ product, onDelete }: ProductRowProps) {
+function ProductRow({ product, onDelete, isAdmin, basePath = "/store/catalog" }: ProductRowProps) {
   const h = [...product.priceHistory].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -134,31 +110,43 @@ function ProductRow({ product, onDelete }: ProductRowProps) {
           </span>
         )}
       </td>
-      <td className="py-4 px-6">
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <td className="py-4 px-6 text-right">
+        {isAdmin ? (
+          <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+            <Link
+              to={`${basePath}/${product.id}`}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-btn"
+              style={{ color: "var(--c-text-2)" }}
+              title="Edit"
+            >
+              <Pencil size={14} />
+            </Link>
+            <button
+              type="button"
+              onClick={() => onDelete(product.id)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-error"
+              style={{ color: "var(--c-error)" }}
+              title="Delete"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ) : (
           <Link
-            to={`/catalog/${product.id}`}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-btn"
-            style={{ color: "var(--c-text-2)" }}
-            title="Edit"
+            to={`${basePath}/${product.id}`}
+            className="inline-flex items-center gap-1 text-xs font-semibold"
+            style={{ color: "var(--c-tint)" }}
           >
-            <Pencil size={14} />
+            <Eye size={14} />
+            View
           </Link>
-          <button
-            onClick={() => onDelete(product.id)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-error"
-            style={{ color: "var(--c-error)" }}
-            title="Delete"
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
+        )}
       </td>
     </tr>
   );
 }
 
-function ProductCard({ product, onDelete }: ProductRowProps) {
+function ProductCard({ product, onDelete, isAdmin, basePath = "/store/catalog" }: ProductRowProps) {
   const h = [...product.priceHistory].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -208,22 +196,36 @@ function ProductCard({ product, onDelete }: ProductRowProps) {
           <p className="font-display font-semibold text-sm" style={{ color: "var(--c-text)" }}>
             P{product.currentPrice.toFixed(2)}
           </p>
-          <Link
-            to={`/catalog/${product.id}`}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-btn"
-            style={{ color: "var(--c-text-2)" }}
-            title="Edit"
-          >
-            <Pencil size={14} />
-          </Link>
-          <button
-            onClick={() => onDelete(product.id)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-error"
-            style={{ color: "var(--c-error)" }}
-            title="Delete"
-          >
-            <Trash2 size={14} />
-          </button>
+          {isAdmin ? (
+            <>
+              <Link
+                to={`${basePath}/${product.id}`}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-btn"
+                style={{ color: "var(--c-text-2)" }}
+                title="Edit"
+              >
+                <Pencil size={14} />
+              </Link>
+              <button
+                type="button"
+                onClick={() => onDelete(product.id)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-error"
+                style={{ color: "var(--c-error)" }}
+                title="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+            </>
+          ) : (
+            <Link
+              to={`${basePath}/${product.id}`}
+              className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg"
+              style={{ color: "var(--c-tint)", backgroundColor: "var(--c-card-alt)" }}
+            >
+              <Eye size={14} />
+              View
+            </Link>
+          )}
         </div>
       </div>
     </div>
@@ -294,12 +296,8 @@ function AddProductModal({ onClose, onSave }: AddProductModalProps) {
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Rice (Sinandomeng)"
               required
-              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db]"
-              style={{
-                backgroundColor: "var(--c-input)",
-                color: "var(--c-text)",
-                border: "none",
-              }}
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "none" }}
             />
           </div>
 
@@ -311,7 +309,7 @@ function AddProductModal({ onClose, onSave }: AddProductModalProps) {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db] cursor-pointer"
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)] cursor-pointer"
                 style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "none" }}
               >
                 {CATEGORIES.filter((c) => c !== "All").map((c) => (
@@ -328,7 +326,7 @@ function AddProductModal({ onClose, onSave }: AddProductModalProps) {
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
                 placeholder="e.g. per kg"
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db]"
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "none" }}
               />
             </div>
@@ -347,7 +345,7 @@ function AddProductModal({ onClose, onSave }: AddProductModalProps) {
                 min="0"
                 step="0.01"
                 required
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db]"
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "none" }}
               />
             </div>
@@ -361,7 +359,7 @@ function AddProductModal({ onClose, onSave }: AddProductModalProps) {
                 onChange={(e) => setStockCount(e.target.value)}
                 placeholder="e.g. 50"
                 min="0"
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db]"
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 style={{ backgroundColor: "var(--c-input)", color: "var(--c-text)", border: "none" }}
               />
             </div>
@@ -380,7 +378,7 @@ function AddProductModal({ onClose, onSave }: AddProductModalProps) {
                   className="flex-1 py-2 rounded-xl text-xs font-medium transition-colors capitalize cursor-pointer"
                   style={
                     stockStatus === s
-                      ? { backgroundColor: "#000000", color: "#ffffff" }
+                      ? { backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }
                       : { backgroundColor: "var(--c-card-alt)", color: "var(--c-text-2)" }
                   }
                 >
@@ -402,7 +400,7 @@ function AddProductModal({ onClose, onSave }: AddProductModalProps) {
             <button
               type="submit"
               className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white flex items-center justify-center gap-2 cursor-pointer transition-opacity hover:opacity-90"
-              style={{ background: "linear-gradient(135deg, #000000, #00174b)" }}
+              style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
             >
               <Check size={14} /> Save Product
             </button>
@@ -413,7 +411,11 @@ function AddProductModal({ onClose, onSave }: AddProductModalProps) {
   );
 }
 
+const TABLE_HEAD_ADMIN = ["Product", "Category", "Status", "Price", "Change", ""];
+const TABLE_HEAD_VIEW = ["Product", "Category", "Status", "Price", "Change", "View"];
+
 export default function Catalog() {
+  const session = useUserSession();
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -421,11 +423,7 @@ export default function Catalog() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
-    let prods = getProducts();
-    if (!prods.length) {
-      saveProducts(SEED_PRODUCTS);
-      prods = SEED_PRODUCTS;
-    }
+    const prods = getMyProducts();
     setProducts(prods);
   }, []);
 
@@ -454,29 +452,34 @@ export default function Catalog() {
 
   const handleSaveNew = useCallback((product: Product) => {
     upsertProduct(product);
-    setProducts(getProducts());
+    setProducts(getMyProducts());
     setShowAddModal(false);
   }, []);
 
   return (
-    <Layout storeName="Erlinda Digman">
+    <>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-bold" style={{ color: "var(--c-text)" }}>
             Product Catalog
           </h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--c-text-3)" }}>
-            Manage your inventory and pricing strategy
+            {session
+              ? "Manage your inventory and pricing strategy"
+              : "Browse inventory and prices (read only)"}
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90 cursor-pointer self-start sm:self-auto"
-          style={{ background: "linear-gradient(135deg, #000000, #00174b)" }}
-        >
-          <Plus size={16} />
-          Add New Product
-        </button>
+        {session ? (
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90 cursor-pointer self-start sm:self-auto"
+            style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
+          >
+            <Plus size={16} />
+            Add New Product
+          </button>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-7">
@@ -556,9 +559,9 @@ export default function Catalog() {
         <table className="w-full">
           <thead>
             <tr style={{ borderBottom: "1px solid var(--c-border)" }}>
-              {["Product", "Category", "Status", "Price", "Change", ""].map((h) => (
+              {(session ? TABLE_HEAD_ADMIN : TABLE_HEAD_VIEW).map((h) => (
                 <th
-                  key={h}
+                  key={h || "actions"}
                   className={`py-3 px-6 text-xs font-medium text-left ${
                     h === "Price" ? "text-right" : ""
                   }`}
@@ -577,13 +580,15 @@ export default function Catalog() {
                   <p className="text-sm" style={{ color: "var(--c-text-3)" }}>
                     {search || activeCategory !== "All"
                       ? "No products match your filter."
-                      : "No products yet. Add your first one!"}
+                      : session
+                        ? "No products yet. Add your first one!"
+                        : "No products yet."}
                   </p>
                 </td>
               </tr>
             ) : (
               filtered.map((product) =>
-                deleteConfirm === product.id ? (
+                session && deleteConfirm === product.id ? (
                   <tr
                     key={product.id}
                     style={{ backgroundColor: "var(--c-error-bg)", borderBottom: "1px solid var(--c-border)" }}
@@ -617,6 +622,7 @@ export default function Catalog() {
                     key={product.id}
                     product={product}
                     onDelete={(id) => setDeleteConfirm(id)}
+                    isAdmin={!!session}
                   />
                 )
               )
@@ -633,12 +639,14 @@ export default function Catalog() {
             <p className="text-sm" style={{ color: "var(--c-text-3)" }}>
               {search || activeCategory !== "All"
                 ? "No products match your filter."
-                : "No products yet. Add your first one!"}
+                : session
+                  ? "No products yet. Add your first one!"
+                  : "No products yet."}
             </p>
           </div>
         ) : (
           filtered.map((product) =>
-            deleteConfirm === product.id ? (
+            session && deleteConfirm === product.id ? (
               <div
                 key={product.id}
                 className="rounded-2xl p-4"
@@ -669,36 +677,26 @@ export default function Catalog() {
                 key={product.id}
                 product={product}
                 onDelete={(id) => setDeleteConfirm(id)}
+                isAdmin={!!session}
               />
             )
           )
         )}
       </div>
 
-      <div className="mt-6 flex justify-center">
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-medium transition-colors cursor-pointer hover-btn"
-          style={{ backgroundColor: "var(--c-card)", color: "var(--c-text-2)" }}
-        >
-          <Plus size={16} />
-          Quick add to shelf
-        </button>
-      </div>
-
-      {showAddModal && (
+      {showAddModal && session && (
         <AddProductModal onClose={() => setShowAddModal(false)} onSave={handleSaveNew} />
       )}
 
       {lowStockCount > 0 && (
         <div
-          className="fixed bottom-6 right-4 sm:right-6 flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-medium text-white shadow-lg cursor-pointer"
-          style={{ background: "linear-gradient(135deg, #000000, #00174b)" }}
+          className="fixed bottom-6 right-4 sm:right-6 flex items-center gap-3 px-5 py-3.5 rounded-2xl text-sm font-medium text-white shadow-lg"
+          style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
         >
           <AlertTriangle size={16} />
           {lowStockCount} item{lowStockCount > 1 ? "s" : ""} low on stock
         </div>
       )}
-    </Layout>
+    </>
   );
 }
