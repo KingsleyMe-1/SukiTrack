@@ -1,5 +1,5 @@
-﻿import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link, useLocation } from "react-router";
 import {
   Package,
   Save,
@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Lightbulb,
   BarChart3,
+  Lock,
 } from "lucide-react";
 import {
   LineChart,
@@ -19,17 +20,16 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import Layout from "~/components/Layout";
+
 import {
   getProduct,
-  getProducts,
-  saveProducts,
   upsertProduct,
   deleteProduct,
   generateId,
 } from "~/lib/store";
-import { SEED_PRODUCTS } from "~/lib/seed-data";
 import type { Product, StockStatus } from "~/lib/types";
+import { useUserSession } from "~/lib/use-user-session";
+import { getUserSession } from "~/lib/user-session";
 
 export function meta() {
   return [
@@ -87,8 +87,8 @@ function PriceChart({ history }: { history: Product["priceHistory"] }) {
           contentStyle={{
             borderRadius: 12,
             border: "none",
-            backgroundColor: "#191c1e",
-            color: "#e6edf3",
+            backgroundColor: "var(--c-card)",
+            color: "var(--c-text)",
             fontSize: 12,
           }}
         />
@@ -105,9 +105,197 @@ function PriceChart({ history }: { history: Product["priceHistory"] }) {
   );
 }
 
+function CatalogItemReadOnly({ product }: { product: Product }) {
+  const location = useLocation();
+  const next = encodeURIComponent(`${location.pathname}${location.search || ""}`);
+  const prevPrice =
+    product.priceHistory.length >= 2
+      ? [...product.priceHistory].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )[1].price
+      : null;
+  const priceDelta = prevPrice !== null ? product.currentPrice - prevPrice : 0;
+
+  return (
+    <>
+      <div
+        className="rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-3"
+        style={{ backgroundColor: "var(--c-info-bg)", border: "1px solid var(--c-border)" }}
+      >
+        <Lock size={18} style={{ color: "var(--c-tint)" }} className="flex-shrink-0" />
+        <p className="text-sm flex-1" style={{ color: "var(--c-text-2)" }}>
+          You are viewing this item in read-only mode.{" "}
+          <Link to={`/auth/store-owner?next=${next}`} className="font-semibold underline" style={{ color: "var(--c-tint)" }}>
+            Sign in as store owner
+          </Link>{" "}
+          to add or edit products.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-5">
+          <div className="rounded-2xl p-6" style={{ backgroundColor: "var(--c-card)" }}>
+            <h2 className="font-display font-bold text-base mb-5" style={{ color: "var(--c-text)" }}>
+              Product Details
+            </h2>
+            <dl className="space-y-4 text-sm">
+              <div>
+                <dt className="text-xs font-medium mb-1" style={{ color: "var(--c-text-3)" }}>
+                  Name
+                </dt>
+                <dd style={{ color: "var(--c-text)" }}>{product.name}</dd>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-xs font-medium mb-1" style={{ color: "var(--c-text-3)" }}>
+                    Category
+                  </dt>
+                  <dd style={{ color: "var(--c-text)" }}>{product.category}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium mb-1" style={{ color: "var(--c-text-3)" }}>
+                    Unit / Size
+                  </dt>
+                  <dd style={{ color: "var(--c-text)" }}>{product.unit}</dd>
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-xs font-medium mb-1" style={{ color: "var(--c-text-3)" }}>
+                    Stock status
+                  </dt>
+                  <dd style={{ color: "var(--c-text)", textTransform: "capitalize" }}>
+                    {product.stockStatus.replace(/-/g, " ")}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium mb-1" style={{ color: "var(--c-text-3)" }}>
+                    Stock count
+                  </dt>
+                  <dd style={{ color: "var(--c-text)" }}>{product.stockCount ?? "—"}</dd>
+                </div>
+              </div>
+              <div>
+                <dt className="text-xs font-medium mb-1" style={{ color: "var(--c-text-3)" }}>
+                  Weekly units sold
+                </dt>
+                <dd style={{ color: "var(--c-text)" }}>{product.weeklyUnitsSold ?? "—"}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="rounded-2xl p-6" style={{ backgroundColor: "var(--c-card)" }}>
+            <div className="flex items-center gap-2 mb-5">
+              <BarChart3 size={18} style={{ color: "var(--c-tint)" }} />
+              <h2 className="font-display font-bold text-base" style={{ color: "var(--c-text)" }}>
+                Pricing
+              </h2>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs mb-1" style={{ color: "var(--c-text-3)" }}>
+                  Current price
+                </p>
+                <p className="font-display text-xl font-bold" style={{ color: "var(--c-text)" }}>
+                  P{product.currentPrice.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs mb-1" style={{ color: "var(--c-text-3)" }}>
+                  Target price
+                </p>
+                <p className="font-display text-xl font-bold" style={{ color: "var(--c-text)" }}>
+                  {product.targetPrice != null ? `P${product.targetPrice.toFixed(2)}` : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {product.priceHistory.length > 0 && (
+            <div className="rounded-2xl p-6" style={{ backgroundColor: "var(--c-card)" }}>
+              <h2 className="font-display font-bold text-base mb-5" style={{ color: "var(--c-text)" }}>
+                Price History
+              </h2>
+              <PriceChart history={product.priceHistory} />
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-2xl p-6" style={{ backgroundColor: "var(--c-card)" }}>
+            <span
+              className="text-xs px-2 py-1 rounded-full font-medium"
+              style={{ backgroundColor: "var(--c-card-alt)", color: "var(--c-text-2)" }}
+            >
+              Catalog preview
+            </span>
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center my-4"
+              style={{ backgroundColor: "var(--c-card-alt)" }}
+            >
+              <Package size={22} style={{ color: "var(--c-text-3)" }} />
+            </div>
+            <p className="font-display font-bold text-base mb-0.5" style={{ color: "var(--c-text)" }}>
+              {product.name}
+            </p>
+            <p className="text-xs mb-3" style={{ color: "var(--c-text-3)" }}>
+              {product.unit} · {product.category}
+            </p>
+            <p className="font-display text-2xl font-bold" style={{ color: "var(--c-text)" }}>
+              P{product.currentPrice.toFixed(2)}
+            </p>
+            {priceDelta !== 0 && (
+              <div
+                className="mt-2 inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
+                style={
+                  priceDelta < 0
+                    ? { backgroundColor: "var(--c-success-bg)", color: "var(--c-success-text)" }
+                    : { backgroundColor: "var(--c-error-bg)", color: "var(--c-error)" }
+                }
+              >
+                {priceDelta < 0 ? (
+                  <>
+                    <TrendingDown size={11} /> vs last entry
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp size={11} /> vs last entry
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {product.stockCount != null &&
+            product.weeklyUnitsSold != null &&
+            product.weeklyUnitsSold > 0 && (
+              <div className="rounded-2xl p-5" style={{ backgroundColor: "var(--c-card-alt)" }}>
+                <p className="font-display font-semibold text-sm mb-2" style={{ color: "var(--c-text)" }}>
+                  Inventory Forecast
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: "var(--c-text-2)" }}>
+                  Based on current sales,{" "}
+                  <strong>{product.stockCount} units</strong> will be depleted in approximately{" "}
+                  <strong>
+                    {Math.ceil(
+                      product.stockCount / (product.weeklyUnitsSold / 7)
+                    )}{" "}
+                    days
+                  </strong>
+                  .
+                </p>
+              </div>
+            )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function CatalogItemEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const session = useUserSession();
 
   const isNew = id === "new";
 
@@ -122,12 +310,9 @@ export default function CatalogItemEditor() {
   const [product, setProduct] = useState<Product | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    let prods = getProducts();
-    if (!prods.length) {
-      saveProducts(SEED_PRODUCTS);
-    }
     if (!isNew && id) {
       const p = getProduct(id);
       if (p) {
@@ -142,7 +327,14 @@ export default function CatalogItemEditor() {
         setWeeklyUnitsSold(p.weeklyUnitsSold?.toString() ?? "");
       }
     }
+    setInitialized(true);
   }, [id, isNew]);
+
+  useEffect(() => {
+    if (isNew && !session) {
+      navigate("/store/catalog", { replace: true });
+    }
+  }, [isNew, session, navigate]);
 
   const prevPrice =
     product && product.priceHistory.length >= 2
@@ -194,19 +386,20 @@ export default function CatalogItemEditor() {
       addedDate: product?.addedDate ?? now,
       isPromo: product?.isPromo,
       isFeatured: product?.isFeatured,
+      storeOwnerId: product?.storeOwnerId ?? getUserSession()?.email,
     };
 
     upsertProduct(updated);
     setSaved(true);
     setTimeout(() => {
-      navigate("/catalog");
+      navigate("/store/catalog");
     }, 900);
   }
 
   function handleDelete() {
     if (!product) return;
     deleteProduct(product.id);
-    navigate("/catalog");
+    navigate("/store/catalog");
   }
 
   const inputStyle = {
@@ -215,11 +408,66 @@ export default function CatalogItemEditor() {
     border: "none",
   };
 
+  if (!initialized) {
+    return (
+      <p className="text-sm" style={{ color: "var(--c-text-3)" }}>
+        Loading…
+      </p>
+    );
+  }
+
+  if (isNew && !session) {
+    return null;
+  }
+
+  if (!isNew && id && !product) {
+    return (
+      <>
+        <Link
+          to="/store/catalog"
+          className="inline-flex items-center gap-2 text-sm mb-6"
+          style={{ color: "var(--c-tint)" }}
+        >
+          <ArrowLeft size={16} />
+          Back to catalog
+        </Link>
+        <p className="font-display font-bold text-lg" style={{ color: "var(--c-text)" }}>
+          Product not found
+        </p>
+      </>
+    );
+  }
+
+  if (!session && product) {
+    return (
+      <>
+        <div className="flex items-center gap-3 mb-7">
+          <Link
+            to="/store/catalog"
+            className="w-9 h-9 rounded-xl flex items-center justify-center hover-btn transition-colors cursor-pointer"
+            style={{ color: "var(--c-text-2)" }}
+          >
+            <ArrowLeft size={18} />
+          </Link>
+          <div>
+            <h1 className="font-display text-xl md:text-2xl font-bold" style={{ color: "var(--c-text)" }}>
+              Product details
+            </h1>
+            <p className="text-sm" style={{ color: "var(--c-text-3)" }}>
+              Read-only view
+            </p>
+          </div>
+        </div>
+        <CatalogItemReadOnly product={product} />
+      </>
+    );
+  }
+
   return (
-    <Layout storeName="Erlinda Digman">
+    <>
       <div className="flex items-center gap-3 mb-7">
         <Link
-          to="/catalog"
+          to="/store/catalog"
           className="w-9 h-9 rounded-xl flex items-center justify-center hover-btn transition-colors cursor-pointer"
           style={{ color: "var(--c-text-2)" }}
         >
@@ -257,7 +505,7 @@ export default function CatalogItemEditor() {
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. San Miguel Pale Pilsen 320ml"
                     required
-                    className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db]"
+                    className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
                     style={inputStyle}
                   />
                 </div>
@@ -270,7 +518,7 @@ export default function CatalogItemEditor() {
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db] cursor-pointer"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)] cursor-pointer"
                       style={inputStyle}
                     >
                       {CATEGORIES.map((c) => (
@@ -287,7 +535,7 @@ export default function CatalogItemEditor() {
                       value={unit}
                       onChange={(e) => setUnit(e.target.value)}
                       placeholder="e.g. 320ml, per kg"
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db]"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
                       style={inputStyle}
                     />
                   </div>
@@ -301,7 +549,7 @@ export default function CatalogItemEditor() {
                     <select
                       value={stockStatus}
                       onChange={(e) => setStockStatus(e.target.value as StockStatus)}
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db] cursor-pointer"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)] cursor-pointer"
                       style={inputStyle}
                     >
                       <option value="in-stock">In Stock</option>
@@ -319,7 +567,7 @@ export default function CatalogItemEditor() {
                       onChange={(e) => setStockCount(e.target.value)}
                       placeholder="e.g. 50"
                       min="0"
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db]"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
                       style={inputStyle}
                     />
                   </div>
@@ -335,7 +583,7 @@ export default function CatalogItemEditor() {
                     onChange={(e) => setWeeklyUnitsSold(e.target.value)}
                     placeholder="e.g. 25"
                     min="0"
-                    className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db]"
+                    className="w-full px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
                     style={inputStyle}
                   />
                 </div>
@@ -371,7 +619,7 @@ export default function CatalogItemEditor() {
                       min="0"
                       step="0.01"
                       required
-                      className="w-full pl-8 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db]"
+                      className="w-full pl-8 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
                       style={inputStyle}
                     />
                   </div>
@@ -394,7 +642,7 @@ export default function CatalogItemEditor() {
                       placeholder="0.00"
                       min="0"
                       step="0.01"
-                      className="w-full pl-8 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#0053db]"
+                      className="w-full pl-8 pr-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
                       style={inputStyle}
                     />
                   </div>
@@ -509,7 +757,7 @@ export default function CatalogItemEditor() {
                 type="submit"
                 disabled={saved}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60 cursor-pointer"
-                style={{ background: "linear-gradient(135deg, #000000, #00174b)" }}
+                style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
               >
                 <Save size={15} />
                 {saved ? "Saved!" : "Save Changes"}
@@ -561,6 +809,6 @@ export default function CatalogItemEditor() {
           </div>
         </div>
       </form>
-    </Layout>
+    </>
   );
 }

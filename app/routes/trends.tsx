@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import {
   TrendingUp,
@@ -19,9 +19,8 @@ import {
   CartesianGrid,
   Cell,
 } from "recharts";
-import Layout from "~/components/Layout";
-import { getProducts, saveProducts } from "~/lib/store";
-import { SEED_PRODUCTS } from "~/lib/seed-data";
+
+import { getMyProducts } from "~/lib/store";
 import type { Product } from "~/lib/types";
 
 export function meta() {
@@ -47,7 +46,7 @@ function RevenueCard({ product, rank }: { product: Product; rank: number }) {
         className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 font-display font-bold text-sm"
         style={
           rank === 1
-            ? { background: "linear-gradient(135deg, #000000, #00174b)", color: "#ffffff" }
+            ? { backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }
             : { backgroundColor: "var(--c-card-alt)", color: "var(--c-text-2)" }
         }
       >
@@ -89,12 +88,7 @@ export default function Trends() {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    let prods = getProducts();
-    if (!prods.length) {
-      saveProducts(SEED_PRODUCTS);
-      prods = SEED_PRODUCTS;
-    }
-    setProducts(prods);
+    setProducts(getMyProducts());
   }, []);
 
   const revenueLeaders = [...products]
@@ -146,7 +140,7 @@ export default function Trends() {
     .sort((a, b) => (b.weeklyUnitsSold ?? 0) - (a.weeklyUnitsSold ?? 0))[0];
 
   return (
-    <Layout storeName="Erlinda Digman">
+    <>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-bold" style={{ color: "var(--c-text)" }}>
@@ -171,24 +165,25 @@ export default function Trends() {
       {demandAlert && (
         <div
           className="rounded-2xl p-5 mb-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-          style={{ background: "linear-gradient(135deg, #000000 0%, #00174b 100%)" }}
+          style={{ backgroundColor: "var(--primary)" }}
         >
           <div className="flex items-center gap-4">
-            <Zap size={20} className="text-white flex-shrink-0" />
+            <Zap size={20} style={{ color: "var(--primary-foreground)" }} className="flex-shrink-0" />
             <div>
-              <p className="font-display font-bold text-white text-sm">
+              <p className="font-display font-bold text-sm" style={{ color: "var(--primary-foreground)" }}>
                 Inventory Alert
               </p>
-              <p className="text-white/70 text-xs mt-0.5">
+              <p className="text-xs mt-0.5" style={{ color: "var(--primary-foreground)", opacity: 0.7 }}>
                 Demand for{" "}
-                <strong className="text-white">{demandAlert.name}</strong> is
+                <strong style={{ color: "var(--primary-foreground)" }}>{demandAlert.name}</strong> is
                 outpacing stock. Restock recommended soon.
               </p>
             </div>
           </div>
           <Link
-            to="/catalog"
-            className="flex-shrink-0 inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-semibold text-white border border-white/20 hover:bg-white/10 transition-colors cursor-pointer self-start sm:self-auto"
+            to="/store/catalog"
+            className="flex-shrink-0 inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-semibold border border-white/20 hover:bg-white/10 transition-colors cursor-pointer self-start sm:self-auto"
+            style={{ color: "var(--primary-foreground)" }}
           >
             Restock Now <ArrowRight size={13} />
           </Link>
@@ -249,8 +244,8 @@ export default function Trends() {
                     contentStyle={{
                       borderRadius: 12,
                       border: "none",
-                      backgroundColor: "#191c1e",
-                      color: "#e6edf3",
+                      backgroundColor: "var(--c-card)",
+                      color: "var(--c-text)",
                       fontSize: 12,
                     }}
                   />
@@ -280,13 +275,13 @@ export default function Trends() {
         <div className="w-full lg:w-72 xl:w-80 flex-shrink-0 space-y-5">
           <div
             className="rounded-2xl p-5"
-            style={{ background: "linear-gradient(135deg, #000000 0%, #00174b 100%)" }}
+            style={{ backgroundColor: "var(--primary)" }}
           >
-            <p className="text-white/60 text-xs mb-1">Est. Weekly Revenue</p>
-            <p className="font-display text-2xl font-bold text-white">
+            <p className="text-xs mb-1" style={{ color: "var(--primary-foreground)", opacity: 0.7 }}>Est. Weekly Revenue</p>
+            <p className="font-display text-2xl font-bold" style={{ color: "var(--primary-foreground)" }}>
               P{totalWeeklyRevenue.toLocaleString("en-PH", { maximumFractionDigits: 0 })}
             </p>
-            <p className="text-white/50 text-xs mt-1">Across {products.length} items</p>
+            <p className="text-xs mt-1" style={{ color: "var(--primary-foreground)", opacity: 0.5 }}>Across {products.length} items</p>
           </div>
 
           <div className="rounded-2xl p-5" style={{ backgroundColor: "var(--c-card)" }}>
@@ -327,7 +322,7 @@ export default function Trends() {
                 </h3>
               </div>
               <Link
-                to="/catalog"
+                to="/store/catalog"
                 className="text-xs hover:underline flex items-center gap-0.5 cursor-pointer"
                 style={{ color: "var(--c-tint)" }}
               >
@@ -363,6 +358,6 @@ export default function Trends() {
           </div>
         </div>
       </div>
-    </Layout>
+    </>
   );
 }

@@ -1,52 +1,40 @@
 import { useState, useEffect } from "react";
-import { NavLink, useLocation, Link, useNavigate } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import { useUserSession } from "~/lib/use-user-session";
 import { logoutUser } from "~/lib/user-session";
 import {
-  LayoutDashboard,
-  BookOpen,
-  TrendingUp,
   Store,
+  BookOpen,
+  CheckSquare,
+  Percent,
   HelpCircle,
+  Bell,
   Sun,
   Moon,
   Menu,
   X,
   LogOut,
+  User,
   ChevronRight,
 } from "lucide-react";
-import { getStoreName, STORE_NAME_CHANGED_EVENT } from "~/lib/store";
 
 const NAV_ITEMS = [
-  { to: "/store", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/store/catalog", label: "Catalog", icon: BookOpen, exact: false },
-  { to: "/store/trends", label: "Trends", icon: TrendingUp, exact: false },
-  { to: "/store/stores", label: "Stores", icon: Store, exact: false },
+  { to: "/customer", label: "Stores", icon: Store, exact: true },
+  { to: "/customer/catalog", label: "Catalogs", icon: BookOpen, exact: false },
+  { to: "/customer/checklist", label: "My Checklist", icon: CheckSquare, exact: false },
+  { to: "/customer/promos", label: "Promos", icon: Percent, exact: false },
 ];
 
-interface LayoutProps {
+interface CustomerLayoutProps {
   children: React.ReactNode;
-  storeName?: string;
 }
 
-export default function Layout({ children, storeName }: LayoutProps) {
+export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const location = useLocation();
   const session = useUserSession();
   const navigate = useNavigate();
   const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [resolvedStoreName, setResolvedStoreName] = useState(() =>
-    typeof window !== "undefined" ? getStoreName() : "My Store"
-  );
-
-  useEffect(() => {
-    setResolvedStoreName(getStoreName());
-    const onStoreName = () => setResolvedStoreName(getStoreName());
-    window.addEventListener(STORE_NAME_CHANGED_EVENT, onStoreName);
-    return () => window.removeEventListener(STORE_NAME_CHANGED_EVENT, onStoreName);
-  }, []);
-
-  const displayStoreName = storeName ?? session?.storeName ?? resolvedStoreName;
 
   useEffect(() => {
     const stored = localStorage.getItem("sukitrack_theme");
@@ -75,12 +63,8 @@ export default function Layout({ children, storeName }: LayoutProps) {
     navigate("/", { replace: true });
   }
 
-  const initials = displayStoreName
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
+  const displayName = session?.name ?? "Customer";
+  const initial = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="bg-background min-h-screen">
@@ -101,25 +85,25 @@ export default function Layout({ children, storeName }: LayoutProps) {
         style={{
           width: 260,
           backgroundColor: "var(--c-sidebar-bg)",
-          borderRight: "1px solid var(--c-border)",
+          borderRight: "1px solid var(--border)",
         }}
       >
         {/* Mobile close */}
         <button
           className="lg:hidden absolute right-3 top-3 w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer transition-colors hover-btn"
-          style={{ color: "var(--c-text-3)" }}
+          style={{ color: "var(--muted-foreground)" }}
           onClick={() => setSidebarOpen(false)}
           aria-label="Close menu"
         >
           <X size={16} />
         </button>
 
-        {/* Logo / brand */}
+        {/* Brand */}
         <div className="px-5 pt-7 pb-4">
           <div className="flex items-center gap-3">
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
+              style={{ backgroundColor: "var(--customer-color)", color: "var(--customer-color-fg)" }}
             >
               <Store className="w-4 h-4" />
             </div>
@@ -128,13 +112,13 @@ export default function Layout({ children, storeName }: LayoutProps) {
                 SukiTrack
               </p>
               <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
-                Store Owner
+                Customer
               </p>
             </div>
           </div>
         </div>
 
-        {/* Store chip */}
+        {/* User chip */}
         <div className="px-5 mb-5">
           <div
             className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl"
@@ -142,17 +126,19 @@ export default function Layout({ children, storeName }: LayoutProps) {
           >
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0"
-              style={{ backgroundColor: "var(--accent)", color: "var(--accent-foreground)" }}
+            style={{ backgroundColor: "var(--customer-color)", color: "var(--customer-color-fg)" }}
             >
-              {initials}
+              {initial}
             </div>
-            <p className="text-sm font-medium truncate flex-1" style={{ color: "var(--foreground)" }}>
-              {displayStoreName}
-            </p>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>
+                {displayName}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Nav items */}
+        {/* Nav */}
         <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto scrollbar-none">
           {NAV_ITEMS.map(({ to, label, icon: Icon, exact }) => {
             const isActive = exact
@@ -169,7 +155,7 @@ export default function Layout({ children, storeName }: LayoutProps) {
                 }`}
                 style={
                   isActive
-                    ? { backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }
+                    ? { backgroundColor: "var(--customer-color)", color: "var(--customer-color-fg)" }
                     : { color: "var(--muted-foreground)" }
                 }
               >
@@ -181,7 +167,7 @@ export default function Layout({ children, storeName }: LayoutProps) {
           })}
         </nav>
 
-        {/* Sidebar footer */}
+        {/* Footer */}
         <div className="px-3 pb-5 pt-4 space-y-0.5" style={{ borderTop: "1px solid var(--border)" }}>
           <a
             href="#"
@@ -191,23 +177,21 @@ export default function Layout({ children, storeName }: LayoutProps) {
             <HelpCircle size={16} />
             Help Center
           </a>
-          {session && (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer text-left hover-error"
-              style={{ color: "var(--destructive)" }}
-            >
-              <LogOut size={16} />
-              Log Out
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer text-left hover-error"
+            style={{ color: "var(--destructive)" }}
+          >
+            <LogOut size={16} />
+            Log Out
+          </button>
         </div>
       </aside>
 
-      {/* Content */}
+      {/* Main content */}
       <div className="flex flex-col min-h-screen lg:ml-[260px]">
-        {/* Top header */}
+        {/* Header */}
         <header
           className="sticky top-0 z-30 flex items-center justify-between px-4 md:px-6 h-14"
           style={{
@@ -225,8 +209,9 @@ export default function Layout({ children, storeName }: LayoutProps) {
             <Menu size={19} />
           </button>
 
-          <span className="hidden lg:block text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-            {displayStoreName}
+          <span className="hidden lg:flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+            <User size={15} style={{ color: "var(--muted-foreground)" }} />
+            {displayName}
           </span>
 
           <div className="flex items-center gap-1.5 ml-auto">
@@ -238,6 +223,21 @@ export default function Layout({ children, storeName }: LayoutProps) {
             >
               {dark ? <Sun size={17} /> : <Moon size={17} />}
             </button>
+
+            <button
+              className="relative w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer hover-btn"
+              style={{ color: "var(--muted-foreground)" }}
+              aria-label="Notifications"
+            >
+              <Bell size={17} />
+            </button>
+
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs cursor-pointer"
+              style={{ backgroundColor: "var(--customer-color)", color: "var(--customer-color-fg)" }}
+            >
+              {initial}
+            </div>
           </div>
         </header>
 
@@ -248,10 +248,7 @@ export default function Layout({ children, storeName }: LayoutProps) {
           style={{ color: "var(--muted-foreground)", borderTop: "1px solid var(--border)" }}
         >
           <span>© {new Date().getFullYear()} SukiTrack</span>
-          <span className="flex gap-4">
-            <a href="#" className="hover:underline cursor-pointer">Privacy</a>
-            <a href="#" className="hover:underline cursor-pointer">Terms</a>
-          </span>
+          <span>Customer View</span>
         </footer>
       </div>
     </div>
