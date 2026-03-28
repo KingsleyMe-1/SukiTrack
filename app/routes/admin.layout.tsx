@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
 import {
   Outlet,
   NavLink,
-  useNavigate,
   useLocation,
   Link,
+  Form,
+  useRouteError,
+  isRouteErrorResponse,
 } from "react-router";
 import {
   Shield,
@@ -16,7 +17,6 @@ import {
   LogOut,
   ArrowLeft,
 } from "lucide-react";
-import { isAdminAuthenticated, logoutAdmin } from "~/lib/admin-session";
 import { getStoreName } from "~/lib/store";
 
 const ADMIN_NAV = [
@@ -28,38 +28,8 @@ const ADMIN_NAV = [
 ];
 
 export default function AdminLayoutRoute() {
-  const navigate = useNavigate();
   const location = useLocation();
-  const [ready, setReady] = useState(false);
-  const [storeLabel, setStoreLabel] = useState("Store");
-
-  useEffect(() => {
-    if (!isAdminAuthenticated()) {
-      const next = encodeURIComponent(
-        `${location.pathname}${location.search || ""}`
-      );
-      navigate(`/admin/login?next=${next}`, { replace: true });
-      return;
-    }
-    setReady(true);
-    setStoreLabel(getStoreName());
-  }, [navigate, location.pathname, location.search]);
-
-  function handleLogout() {
-    logoutAdmin();
-    navigate("/admin/login", { replace: true });
-  }
-
-  if (!ready) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center text-sm"
-        style={{ backgroundColor: "var(--c-page-bg)", color: "var(--c-text-2)" }}
-      >
-        Checking access…
-      </div>
-    );
-  }
+  const storeLabel = getStoreName();
 
   return (
     <div style={{ backgroundColor: "var(--c-page-bg)", minHeight: "100vh" }}>
@@ -133,21 +103,61 @@ export default function AdminLayoutRoute() {
               <ArrowLeft size={16} />
               Back to app
             </Link>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer hover-nav text-left"
-              style={{ color: "var(--c-error)" }}
-            >
-              <LogOut size={16} />
-              Log out
-            </button>
+            <Form method="post">
+              <button
+                type="submit"
+                name="intent"
+                value="logout"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors cursor-pointer hover-nav text-left"
+                style={{ color: "var(--c-error)" }}
+              >
+                <LogOut size={16} />
+                Log out
+              </button>
+            </Form>
           </div>
         </aside>
 
         <main className="flex-1 px-4 md:px-8 py-6 md:py-8 max-w-5xl w-full">
           <Outlet />
         </main>
+      </div>
+    </div>
+  );
+}
+
+export async function loader({ request }: { request: Request }) {
+  const { requireAdmin } = await import("~/lib/admin-auth");
+  await requireAdmin(request);
+  return null;
+}
+
+export async function action({ request }: { request: Request }) {
+  const { destroyAdminSessionRedirect } = await import("~/lib/admin-auth");
+  const formData = await request.formData();
+  if (formData.get("intent") === "logout") {
+    return destroyAdminSessionRedirect(request);
+  }
+  return null;
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const message = isRouteErrorResponse(error)
+    ? `${error.status} ${error.statusText}`
+    : error instanceof Error
+      ? error.message
+      : "Unexpected admin layout error";
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: "var(--c-page-bg)" }}>
+      <div className="max-w-lg w-full rounded-2xl p-6" style={{ backgroundColor: "var(--c-card)", border: "1px solid var(--c-border)" }}>
+        <h1 className="font-display font-bold text-lg mb-2" style={{ color: "var(--c-text)" }}>
+          Admin section unavailable
+        </h1>
+        <p className="text-sm" style={{ color: "var(--c-text-2)" }}>
+          {message}
+        </p>
       </div>
     </div>
   );

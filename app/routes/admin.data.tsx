@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Download, Upload } from "lucide-react";
 import type { Product } from "~/lib/types";
 import { getProducts, replaceAllProducts, mergeProductsFromImport } from "~/lib/store";
+import { productSchema } from "~/lib/validation";
 
 export function meta() {
   return [
@@ -11,18 +12,7 @@ export function meta() {
 }
 
 function isProduct(x: unknown): x is Product {
-  if (!x || typeof x !== "object") return false;
-  const o = x as Record<string, unknown>;
-  return (
-    typeof o.id === "string" &&
-    typeof o.name === "string" &&
-    typeof o.category === "string" &&
-    typeof o.unit === "string" &&
-    typeof o.currentPrice === "number" &&
-    typeof o.stockStatus === "string" &&
-    Array.isArray(o.priceHistory) &&
-    typeof o.addedDate === "string"
-  );
+  return productSchema.safeParse(x).success;
 }
 
 function parseProductsFile(text: string): Product[] | null {

@@ -50,8 +50,12 @@ export interface StoreUserAccount {
   email: string;
   name: string;
   storeName: string;
-  /** Plain-text password. Replace with Supabase Auth on migration. */
-  password: string;
+  /** PBKDF2 password hash in base64. */
+  passwordHash: string;
+  /** PBKDF2 salt in base64. */
+  passwordSalt: string;
+  /** PBKDF2 iteration count used for this account. */
+  passwordIterations: number;
   createdAt: string;
 }
 

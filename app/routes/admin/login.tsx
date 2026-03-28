@@ -1,7 +1,13 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router";
+import { useState } from "react";
+import {
+  Form,
+  Link,
+  useActionData,
+  useNavigation,
+  useSearchParams,
+  redirect,
+} from "react-router";
 import { Shield, ArrowLeft } from "lucide-react";
-import { isAdminAuthenticated, loginAdmin } from "~/lib/admin-session";
 
 export function meta() {
   return [
@@ -10,28 +16,37 @@ export function meta() {
   ];
 }
 
+export async function loader({ request }: { request: Request }) {
+  const { isAdminAuthenticated } = await import("~/lib/admin-auth");
+  if (await isAdminAuthenticated(request)) {
+    const url = new URL(request.url);
+    const next = url.searchParams.get("next") || "/admin";
+    throw redirect(next);
+  }
+  return null;
+}
+
+export async function action({ request }: { request: Request }) {
+  const { createAdminSessionRedirect, getConfiguredAdminPassword } = await import("~/lib/admin-auth");
+  const formData = await request.formData();
+  const password = String(formData.get("password") || "");
+  const nextRaw = String(formData.get("next") || "/admin");
+  const next = nextRaw.startsWith("/") ? nextRaw : "/admin";
+
+  if (password !== getConfiguredAdminPassword()) {
+    return { error: "Incorrect password." };
+  }
+
+  return createAdminSessionRedirect(request, next);
+}
+
 export default function AdminLogin() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const actionData = useActionData() as { error?: string } | undefined;
+  const navigation = useNavigation();
   const next = searchParams.get("next") || "/admin";
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (isAdminAuthenticated()) {
-      navigate(next, { replace: true });
-    }
-  }, [navigate, next]);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    if (!loginAdmin(password)) {
-      setError("Incorrect password.");
-      return;
-    }
-    navigate(next, { replace: true });
-  }
+  const loading = navigation.state === "submitting";
 
   return (
     <div
@@ -53,19 +68,17 @@ export default function AdminLogin() {
             <Shield className="w-6 h-6" style={{ color: "var(--primary-foreground)" }} />
           </div>
           <div>
-            <h1
-              className="font-display font-bold text-lg"
-              style={{ color: "var(--c-text)" }}
-            >
+            <h1 className="font-display font-bold text-lg" style={{ color: "var(--c-text)" }}>
               Admin access
             </h1>
             <p className="text-xs" style={{ color: "var(--c-text-3)" }}>
-              Local session only — replace with Supabase Auth later.
+              Server-validated session using secure HTTP-only cookies.
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <Form method="post" className="space-y-4">
+          <input type="hidden" name="next" value={next} />
           <div>
             <label
               className="block text-xs font-medium mb-1.5"
@@ -75,6 +88,7 @@ export default function AdminLogin() {
             </label>
             <input
               type="password"
+              name="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -87,26 +101,23 @@ export default function AdminLogin() {
               placeholder="Enter admin password"
               required
             />
-            <p className="text-xs mt-2" style={{ color: "var(--c-text-3)" }}>
-              Default is <code className="text-[11px]">changeme</code> unless{" "}
-              <code className="text-[11px]">VITE_ADMIN_PASSWORD</code> is set.
-            </p>
           </div>
 
-          {error && (
+          {actionData?.error && (
             <p className="text-xs font-medium" style={{ color: "var(--c-error)" }}>
-              {error}
+              {actionData.error}
             </p>
           )}
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90 cursor-pointer"
+            disabled={loading}
+            className="w-full py-3 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90 cursor-pointer disabled:opacity-50"
             style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
           >
-            Sign in
+            {loading ? "Signing in..." : "Sign in"}
           </button>
-        </form>
+        </Form>
 
         <Link
           to="/store"

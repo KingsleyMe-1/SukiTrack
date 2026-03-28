@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ShoppingCart } from "lucide-react";
-import { signupCustomer, loginCustomer, getUserSession } from "~/lib/user-session";
+import {
+  requestCustomerOtp,
+  verifyCustomerOtp,
+  getUserSession,
+} from "~/lib/user-session";
 
 export function meta() {
   return [{ title: "Customer Sign In — SukiTrack" }];
@@ -19,6 +23,11 @@ export default function AuthCustomer() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
+  const [signupOtp, setSignupOtp] = useState("");
+  const [loginOtp, setLoginOtp] = useState("");
+  const [signupOtpRequested, setSignupOtpRequested] = useState(false);
+  const [loginOtpRequested, setLoginOtpRequested] = useState(false);
+  const [devOtpCode, setDevOtpCode] = useState("");
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,8 +41,22 @@ export default function AuthCustomer() {
   function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!signupOtpRequested) {
+      setLoading(true);
+      const request = requestCustomerOtp(email.trim(), "signup", name.trim());
+      setLoading(false);
+      if (!request.ok) {
+        setError(request.error ?? "Something went wrong.");
+        return;
+      }
+      setSignupOtpRequested(true);
+      setDevOtpCode(request.debugCode ?? "");
+      return;
+    }
+
     setLoading(true);
-    const result = signupCustomer(name.trim(), email.trim());
+    const result = verifyCustomerOtp(email.trim(), signupOtp.trim(), "signup", name.trim());
     setLoading(false);
     if (!result.ok) { setError(result.error ?? "Something went wrong."); return; }
     navigate("/customer");
@@ -42,8 +65,22 @@ export default function AuthCustomer() {
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    if (!loginOtpRequested) {
+      setLoading(true);
+      const request = requestCustomerOtp(loginEmail.trim(), "login");
+      setLoading(false);
+      if (!request.ok) {
+        setError(request.error ?? "Something went wrong.");
+        return;
+      }
+      setLoginOtpRequested(true);
+      setDevOtpCode(request.debugCode ?? "");
+      return;
+    }
+
     setLoading(true);
-    const result = loginCustomer(loginEmail.trim());
+    const result = verifyCustomerOtp(loginEmail.trim(), loginOtp.trim(), "login");
     setLoading(false);
     if (!result.ok) { setError(result.error ?? "Something went wrong."); return; }
     navigate("/customer");
@@ -122,9 +159,33 @@ export default function AuthCustomer() {
               style={{ backgroundColor: "var(--muted)", color: "var(--foreground)" }}
             />
             <p className="text-xs mt-1.5" style={{ color: "var(--muted-foreground)" }}>
-              No password needed — your email is your identity.
+              We send a one-time code to verify this email.
             </p>
           </div>
+
+          {signupOtpRequested && (
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--muted-foreground)" }}>
+                Verification Code *
+              </label>
+              <input
+                type="text"
+                value={signupOtp}
+                onChange={(e) => setSignupOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                placeholder="6-digit code"
+                required
+                className={inputCls}
+                style={{ backgroundColor: "var(--muted)", color: "var(--foreground)" }}
+              />
+            </div>
+          )}
+
+          {devOtpCode && (
+            <p className="text-xs font-medium px-3 py-2 rounded-lg" style={{ backgroundColor: "var(--c-info-bg)", color: "var(--c-text-2)" }}>
+              Demo OTP code: {devOtpCode}
+            </p>
+          )}
 
           {error && (
             <p className="text-xs font-medium px-3 py-2 rounded-lg" style={{ backgroundColor: "var(--c-error-bg)", color: "var(--destructive)" }}>
@@ -138,7 +199,7 @@ export default function AuthCustomer() {
             className="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 cursor-pointer disabled:opacity-50"
             style={{ backgroundColor: "var(--secondary)", color: "var(--secondary-foreground)" }}
           >
-            {loading ? "Creating account…" : "Create Account"}
+            {loading ? "Please wait…" : signupOtpRequested ? "Verify & Continue" : "Send OTP"}
           </button>
         </form>
       )}
@@ -161,6 +222,30 @@ export default function AuthCustomer() {
             />
           </div>
 
+          {loginOtpRequested && (
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--muted-foreground)" }}>
+                Verification Code *
+              </label>
+              <input
+                type="text"
+                value={loginOtp}
+                onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                placeholder="6-digit code"
+                required
+                className={inputCls}
+                style={{ backgroundColor: "var(--muted)", color: "var(--foreground)" }}
+              />
+            </div>
+          )}
+
+          {devOtpCode && (
+            <p className="text-xs font-medium px-3 py-2 rounded-lg" style={{ backgroundColor: "var(--c-info-bg)", color: "var(--c-text-2)" }}>
+              Demo OTP code: {devOtpCode}
+            </p>
+          )}
+
           {error && (
             <p className="text-xs font-medium px-3 py-2 rounded-lg" style={{ backgroundColor: "var(--c-error-bg)", color: "var(--destructive)" }}>
               {error}
@@ -173,7 +258,7 @@ export default function AuthCustomer() {
             className="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-90 cursor-pointer disabled:opacity-50"
             style={{ backgroundColor: "var(--secondary)", color: "var(--secondary-foreground)" }}
           >
-            {loading ? "Signing in…" : "Sign In"}
+            {loading ? "Please wait…" : loginOtpRequested ? "Verify & Sign In" : "Send OTP"}
           </button>
         </form>
       )}

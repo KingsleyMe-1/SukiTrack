@@ -1,7 +1,7 @@
 import type { Config } from "@react-router/dev/config";
 
 export default {
-  // Config options...
-  // Server-side render by default, to enable SPA mode set this to `false`
+  // SSR is intentionally enabled because admin auth now uses server loaders/actions
+  // with httpOnly cookies.
   ssr: true,
 } satisfies Config;
