@@ -22,8 +22,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 md:px-12 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
+\      <header className="flex items-center justify-between px-6 md:px-12 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
         <div className="flex items-center gap-2.5">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -43,16 +42,7 @@ export default function Landing() {
         </span>
       </header>
 
-      {/* Hero */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-16 md:py-24">
-        {/* Badge */}
-        <div
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mb-6"
-          style={{ backgroundColor: "var(--muted)", color: "var(--muted-foreground)" }}
-        >
-          <Sparkles size={12} />
-          Neighborhood Price Ledger
-        </div>
 
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-center leading-tight mb-5 max-w-2xl" style={{ color: "var(--foreground)" }}>
           Your Suki Store,{" "}
@@ -63,9 +53,7 @@ export default function Landing() {
           Monitor prices, manage inventory, and stay on top of every deal — whether you run the store or just shop there.
         </p>
 
-        {/* Role cards */}
         <div className="w-full max-w-2xl grid sm:grid-cols-2 gap-4">
-          {/* Customer card */}
           <Link
             to="/auth/customer"
             className="group rounded-2xl p-7 flex flex-col gap-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
@@ -95,7 +83,6 @@ export default function Landing() {
             </div>
           </Link>
 
-          {/* Store Owner card */}
           <Link
             to="/auth/store-owner"
             className="group rounded-2xl p-7 flex flex-col gap-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
@@ -124,9 +111,8 @@ export default function Landing() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="text-center text-xs py-4 px-4" style={{ color: "var(--muted-foreground)", borderTop: "1px solid var(--border)" }}>
-        © {new Date().getFullYear()} SukiTrack · Built for Philippine neighborhood stores
+        © {new Date().getFullYear()} SukiTrack · Built for Philippine sari-sari stores
       </footer>
     </div>
   );
